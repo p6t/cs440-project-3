@@ -7,6 +7,8 @@ FN_HILL = 0.3
 FN_FOREST = 0.7
 FN_CAVE = 0.9
 
+DEBUG = 0
+
 class Landscape:
 
     def __init__(self, d):
@@ -49,12 +51,15 @@ class Landscape:
             roll = random.random()
             if (roll < false_negative_chance):
                 # False negative, return 0
+                if (DEBUG): print("---> FALSE NEGATIVE AT ({}, {})".format(x, y))
                 return 0
             else:
                 # True positive, return 1
+                if (DEBUG): print("---> TARGET FOUND AT ({}, {})".format(x, y))
                 return 1
         else:
             # True negative, return 0
+            if (DEBUG): print("---> True negative at ({}, {})".format(x, y))
             return 0
 
     

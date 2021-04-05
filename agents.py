@@ -14,6 +14,7 @@ class BasicAgent1:
         self.belief = np.full((d, d), 1 / (d ** 2))
         self.n_fails = np.full((d, d), 1)
         self.board = board
+        self.distance = 0
 
     def choose_next_query(self):
         self.n_searches += 1
@@ -46,6 +47,7 @@ class BasicAgent1:
         # Select a random choice from the remainder
         ret = random.choice(shortest_options)
         if (DEBUG): print("Curently at {}, moving to {}".format(self.cur_pos, ret))
+        self.distance += self.calc_manhattan_distance(ret)
         self.cur_pos = ret
         return ret
 
@@ -95,12 +97,9 @@ class BasicAgent1:
 
         # Updating belief in all other cells
         delta_belief_others = (-1) * delta_belief / ((self.d ** 2) - 1)
-        for i in range(self.d):
-            for j in range(self.d):
-                if (x == i) and (y == j):
-                    continue
-                else:
-                    self.belief[i][j] += delta_belief_others
+        
+        self.belief += delta_belief_others
+        self.belief[x][y] = new_belief
 
         return None
 
@@ -115,6 +114,7 @@ class BasicAgent2:
         self.belief = np.full((d, d), 1 / (d ** 2))
         self.n_fails = np.full((d, d), 1)
         self.board = board
+        self.distance = 0
 
     def choose_next_query(self):
         self.n_searches += 1
@@ -147,6 +147,7 @@ class BasicAgent2:
         # Select a random choice from the remainder
         ret = random.choice(shortest_options)
         if (DEBUG): print("Curently at {}, moving to {}".format(self.cur_pos, ret))
+        self.distance += self.calc_manhattan_distance(ret)
         self.cur_pos = ret
         return ret
 
@@ -196,11 +197,72 @@ class BasicAgent2:
 
         # Updating belief in all other cells
         delta_belief_others = (-1) * delta_belief / ((self.d ** 2) - 1)
+        
+        self.belief += delta_belief_others
+        self.belief[x][y] = new_belief
+
+        return None
+
+class AdvancedAgent:
+    # As basic agent 1, but more agressively punishes cells for failed searches
+
+    def __init__(self, d, board):
+        self.d = d
+        self.cur_pos = (random.randrange(0, d), random.randrange(0, d))
+        if (DEBUG): print("Starting position: {}".format(self.cur_pos))
+        self.n_searches = 0
+        self.belief = np.full((d, d), 2**20)
+        self.n_fails = np.full((d, d), 1)
+        self.board = board
+        self.distance = 0
+
+    def choose_next_query(self):
+        self.n_searches += 1
+
+        # Select the most likely options
+        options = []
+        max_belief = 0
         for i in range(self.d):
             for j in range(self.d):
-                if (x == i) and (y == j):
-                    continue
-                else:
-                    self.belief[i][j] += delta_belief_others
+                if (math.isclose(max_belief, self.belief[i][j])):
+                    options.append((i, j))
+                elif (max_belief < self.belief[i][j]):
+                    max_belief = self.belief[i][j]
+                    options = []
+                    options.append((i, j))
 
+        # Select the closest of these options
+        min_manhattan_distance = self.d * 2
+        shortest_options = []
+        for i in range(len(options)):
+            cur_manhattan_distance = self.calc_manhattan_distance(options[i])
+            #print("distance from {} to {}: {}".format(self.cur_pos, options[i], cur_manhattan_distance))
+            if (min_manhattan_distance > cur_manhattan_distance):
+                shortest_options = []
+                min_manhattan_distance = cur_manhattan_distance
+                shortest_options.append(options[i])
+            elif (min_manhattan_distance == cur_manhattan_distance):
+                shortest_options.append(options[i])
+
+        # Select a random choice from the remainder
+        ret = random.choice(shortest_options)
+        if (DEBUG): print("Curently at {}, moving to {}".format(self.cur_pos, ret))
+        self.distance += self.calc_manhattan_distance(ret)
+        self.cur_pos = ret
+        return ret
+
+    def calc_manhattan_distance(self, pos):
+        (x1, y1) = self.cur_pos
+        (x2, y2) = pos
+        return abs(x2 - x1) + abs(y2 - y1)
+
+    def nCr(self, n, r):
+        f = math.factorial
+        return f(n) // f(r) // f(n-r)
+
+    def update_kb(self, pos):
+        (x, y) = pos
+        fn_prob = self.board[x][y]
+        self.n_fails[x][y] += 1
+        self.belief[x][y] -= (1-fn_prob)
         return None

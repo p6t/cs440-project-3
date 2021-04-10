@@ -224,10 +224,11 @@ class AdvancedAgent:
         max_belief = 0
         for i in range(self.d):
             for j in range(self.d):
-                if (math.isclose(max_belief, self.belief[i][j])):
+                dist = self.calc_manhattan_distance(self.belief[i][j]) + 1
+                if (math.isclose(max_belief, self.belief[i][j]) * dist):
                     options.append((i, j))
-                elif (max_belief < self.belief[i][j]):
-                    max_belief = self.belief[i][j]
+                elif (max_belief < self.belief[i][j] * dist):
+                    max_belief = self.belief[i][j] * dist
                     options = []
                     options.append((i, j))
 
@@ -261,8 +262,44 @@ class AdvancedAgent:
         return f(n) // f(r) // f(n-r)
 
     def update_kb(self, pos):
+        # This function will run if the agent failed to find the target at pos
+        # fn_prob is the probability of false negative at pos
+
         (x, y) = pos
         fn_prob = self.board[x][y]
         self.n_fails[x][y] += 1
-        self.belief[x][y] -= (1-fn_prob)
+
+        # P(A | B) = P(B | A) * P(A) / P(B)
+        # new_belief = term1 * term2 / term3
+
+        # P(A | B) = chance of target in cell given current observations
+
+        # P(B | A) = chance of current observations given target in cell
+        # Uses a binomial distribution
+        # Chance of false negatives
+        p = math.pow(fn_prob, self.n_fails[x][y])
+        # Chance of true negatives
+        q = math.pow(1-fn_prob, 0)
+        # Ways to get n false negatives in n trials (always 1)
+        ncr = self.nCr(self.n_fails[x][y], self.n_fails[x][y])
+        term1 = ncr * p * q
+
+        # P(A) = chance of target in cell
+        term2 = self.belief[x][y]
+
+        # P(B) = chance of current observations
+        term3 = fn_prob
+
+        
+        new_belief = (term1 * term2) / term3
+        if (DEBUG): print("{} = {} * {} / {}".format(new_belief, term1, term2, term3))
+        delta_belief = new_belief - self.belief[x][y]
+        self.belief[x][y] = new_belief
+
+        # Updating belief in all other cells
+        delta_belief_others = (-1) * delta_belief / ((self.d ** 2) - 1)
+        
+        self.belief += delta_belief_others
+        self.belief[x][y] = new_belief
+
         return None
